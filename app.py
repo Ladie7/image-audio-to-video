@@ -26,10 +26,19 @@ def convert_to_video():
 
     # Convert using FFmpeg
     cmd = [
-        "ffmpeg", "-loop", "1", "-i", image_file, "-i", audio_file,
-        "-c:v", "libx264", "-tune", "stillimage", "-c:a", "aac",
-        "-b:a", "192k", "-shortest", output_name
-    ]
+    "ffmpeg",
+    "-loop", "1",
+    "-i", image_file,
+    "-i", audio_file,
+    "-c:v", "libx264",
+    "-tune", "stillimage",
+    "-c:=a", "aac",
+    "-b:=a", "192k",
+    "-pix_fmt", "yuv420p",
+    "-shortest",
+    "-vf", "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720",
+    output_name
+]
     subprocess.run(cmd)
 
     return jsonify({"status": "success", "video_path": output_name})
