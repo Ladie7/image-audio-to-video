@@ -26,17 +26,20 @@ def convert_to_video():
 
     # Convert using FFmpeg
     cmd = [
-    "ffmpeg",
+   "ffmpeg",
     "-loop", "1",
     "-i", image_file,
     "-i", audio_file,
+    "-filter_complex",
+    "[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1[fg];"  # foreground
+    "[0:v]scale=720:1280:force_original_aspect_ratio=increase,boxblur=10:1,crop=720:1280[bg];"  # blurred background
+    "[bg][fg]overlay=(W-w)/2:(H-h)/2",  # combine them
     "-c:v", "libx264",
     "-tune", "stillimage",
     "-c:=a", "aac",
-    "-b:=a", "192k",
+    "-b=a", "192k",
     "-pix_fmt", "yuv420p",
     "-shortest",
-    "-vf", "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720",
     output_name
 ]
     subprocess.run(cmd)
