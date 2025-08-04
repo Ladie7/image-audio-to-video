@@ -3,6 +3,12 @@ import subprocess
 import os
 import uuid
 app = Flask(__name__)
+@app.route('/')
+def home():
+    return '''
+    <h1>🧠 Image + Audio to Video Converter</h1>
+    <p>POST to <code>/convert</code> with JSON containing <code>image_url</code> and <code>audio_url</code> to generate a video.</p>
+    '''
 
 
 @app.route("/convert", methods=["POST"])
