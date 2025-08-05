@@ -6,6 +6,10 @@ import uuid
 
 app = FastAPI()
 
+@app.get("/")
+def read_root():
+    return {"message": "Image-Audio-to-Video API is running"}
+    
 class MediaInput(BaseModel):
     image_url: str
     audio_url: str
