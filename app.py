@@ -1,48 +1,52 @@
-from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
 import subprocess
 import os
-import requests
+from fastapi import FastAPI, Request
+from pydantic import BaseModel
+import uuid
 
 app = FastAPI()
 
-# Serve the static folder
-app.mount("/static", StaticFiles(directory="static"), name="static")
+class MediaInput(BaseModel):
+    image_url: str
+    audio_url: str
 
 @app.post("/convert")
-async def convert(request: Request):
-    data = await request.json()
-    image_url = data["image_url"]
-    audio_url = data["audio_url"]
-    output_name = data["output_name"]
+async def convert(input: MediaInput):
+    image_url = input.image_url
+    audio_url = input.audio_url
 
-    image_path = f"temp_image.png"
-    audio_path = f"temp_audio.mp3"
-    output_path = f"static/{output_name}"
+    # Unique filenames
+    uid = str(uuid.uuid4())
+    image_file = f"{uid}_image.png"
+    audio_file = f"{uid}_audio.mp3"
+    output_name = f"{uid}_output.mp4"
 
-    # Download image
-    img_data = requests.get(image_url).content
-    with open(image_path, "wb") as f:
-        f.write(img_data)
+    # Download image and audio
+    subprocess.run(["curl", "-o", image_file, image_url])
+    subprocess.run(["curl", "-o", audio_file, audio_url])
 
-    # Download audio
-    audio_data = requests.get(audio_url).content
-    with open(audio_path, "wb") as f:
-        f.write(audio_data)
-
-    # Generate video using FFmpeg
-    command = [
-        "ffmpeg", "-loop", "1", "-i", image_path, "-i", audio_path,
-        "-c:v", "libx264", "-tune", "stillimage", "-c:a", "aac",
-        "-b:a", "192k", "-pix_fmt", "yuv420p", "-shortest", output_path
+    # Convert using FFmpeg with blurred background for 9:16 (Shorts)
+    cmd = [
+        "ffmpeg",
+        "-loop", "1",
+        "-i", image_file,
+        "-i", audio_file,
+        "-filter_complex",
+        "[0:v]scale=720:1280:force_original_aspect_ratio=decrease,"
+        "pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1[fg];"
+        "[0:v]scale=720:1280:force_original_aspect_ratio=increase,"
+        "boxblur=10:1,crop=720:1280[bg];"
+        "[bg][fg]overlay=(W-w)/2:(H-h)/2",
+        "-c:v", "libx264",
+        "-tune", "stillimage",
+        "-c:=a", "aac",
+        "-b:=a", "192k",
+        "-pix_fmt", "yuv420p",
+        "-shortest",
+        output_name
     ]
-    subprocess.run(command)
 
-    # Remove temp files
-    os.remove(image_path)
-    os.remove(audio_path)
+    subprocess.run(cmd)
 
-    return {
-        "status": "success",
-        "video_url": f"https://image-audio-to-video.onrender.com/static/{output_name}"
-    }
+    return {"video_file": output_name}
+
